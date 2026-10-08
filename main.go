@@ -1,0 +1,333 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+var sessionIDPattern = regexp.MustCompile(`^[0-9a-fA-F-]{6,}$`)
+
+// sessionIDArg reports whether arg looks like a session ID — the hex/hyphen
+// UUID-based names the agents give their session files — as opposed to a
+// list index, search query, or path. Purely numeric strings are excluded so
+// "acv 3" still means index 3.
+func sessionIDArg(arg string) bool {
+	if !sessionIDPattern.MatchString(arg) {
+		return false
+	}
+	for _, r := range arg {
+		if r < '0' || r > '9' {
+			return true
+		}
+	}
+	return false
+}
+
+// printAmbiguousSessionID reports the candidate sessions for an ambiguous ID
+// prefix to stderr and exits.
+func printAmbiguousSessionID(arg string, matches []Session) {
+	fmt.Fprintf(os.Stderr, "Ambiguous session ID %q matches %d sessions:\n", arg, len(matches))
+	for _, s := range matches {
+		fmt.Fprintf(os.Stderr, "  %.12s  [%s] %s\n", s.ID, s.Agent, s.Title)
+	}
+	os.Exit(1)
+}
+
+// isTerminal reports whether fd refers to a terminal (character device).
+func isTerminal(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func main() {
+	showStart := flag.Bool("s", false, "Show start time in listing")
+	searchQuery := flag.String("f", "", "Search for pattern in all sessions (supports * and ?)")
+	noTUI := flag.Bool("no-tui", false, "Disable TUI, use plain CLI output")
+	showMem := flag.Bool("memories", false, "List agent memory files")
+	showFiles := flag.Bool("files", false, "List agent artifact files (tool-results, logs)")
+	syncSkillsF := flag.Bool("sync-skills", false, "Sync skills from canonical dir to per-agent dirs")
+	agentFilter := flag.String("agent", "", "Filter by agent name (claude/gemini/copilot/agy)")
+	projFilter := flag.String("project", "", "Filter by project name (substring match)")
+	regexFlag := flag.Bool("regex", false, "Treat -f pattern as a full regex (default: literal + * ? wildcards)")
+	phraseFlag := flag.Bool("phrase", false, "Match -f pattern as one literal phrase instead of AND-ing space-separated terms")
+	sinceFlag := flag.String("since", "", "Only sessions updated since (YYYY-MM-DD, RFC3339, or duration like 7d/24h)")
+	untilFlag := flag.String("until", "", "Only sessions updated before (YYYY-MM-DD, RFC3339, or duration like 7d/24h)")
+	limitFlag := flag.Int("limit", 0, "Stop after N search matches (0 = unlimited)")
+	jsonFlag := flag.Bool("json", false, "Emit one JSON object per search hit (no banners)")
+	htmlFlag := flag.Bool("html", false, "Export a grouped, browsable HTML report instead of launching the TUI")
+	outputFlag := flag.String("output", "", "Output path for -html (default: ~/.config/agent-history-viewer/report.html)")
+	serveFlag := flag.Bool("serve", false, "With -html, start a local server so Summarize buttons work (needs the claude CLI)")
+	portFlag := flag.Int("port", 0, "Port for -serve (default: auto)")
+	resetGroupsFlag := flag.Bool("reset-groups", false, "Regenerate the project grouping config from scratch")
+	flag.Parse()
+
+	// -json, -html and non-TTY stdout all imply -no-tui.
+	if *jsonFlag || *htmlFlag || !isTerminal(os.Stdout) {
+		*noTUI = true
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	if *htmlFlag {
+		runHTMLExport(home, *outputFlag, *projFilter, *agentFilter, *resetGroupsFlag, *serveFlag, *portFlag)
+		return
+	}
+
+	// "acv <session-id>" jumps straight into the TUI on that conversation,
+	// e.g. acv 8d2c6cc4-8a5d-4dd8-984d-93e8f78e7786 (a prefix works too).
+	if !*noTUI && flag.NArg() == 1 && *searchQuery == "" && *agentFilter == "" && *projFilter == "" &&
+		!*showMem && !*showFiles && !*syncSkillsF {
+		if arg := flag.Args()[0]; sessionIDArg(arg) {
+			sessions := findAndSortSessions(home)
+			if exact, matches := findSessionByID(sessions, arg); exact != nil {
+				p := tea.NewProgram(newTUIForSession(exact.ID), tea.WithAltScreen())
+				if _, err := p.Run(); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					os.Exit(1)
+				}
+				return
+			} else if len(matches) > 1 {
+				printAmbiguousSessionID(arg, matches)
+			}
+			// No match — fall through to the existing CLI handling below,
+			// which treats an unrecognised arg as a search query.
+		}
+	}
+
+	// Default: launch TUI when no arguments are given
+	cliMode := *noTUI || *showMem || *showFiles || *syncSkillsF || *searchQuery != "" ||
+		flag.NArg() > 0 || *agentFilter != "" || *projFilter != ""
+	if !cliMode {
+		p := tea.NewProgram(newTUI(), tea.WithAltScreen())
+		if _, err := p.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	// CLI mode ──────────────────────────────────────────────────────────────
+
+	if *showMem {
+		printMemories(findMemories(home), *agentFilter, *projFilter)
+		return
+	}
+
+	if *showFiles {
+		printArtifacts(findArtifacts(home), *agentFilter, *projFilter)
+		return
+	}
+
+	if *syncSkillsF {
+		report := syncSkills(defaultSkillDirs(home))
+		for _, s := range report.Moved {
+			fmt.Println("moved  ", s)
+		}
+		for _, s := range report.Linked {
+			fmt.Println("linked ", s)
+		}
+		for _, s := range report.Skipped {
+			fmt.Println("skip   ", s)
+		}
+		for _, c := range report.Conflicts {
+			fmt.Printf("conflict %s:%s — resolve manually or open acv TUI\n", c.Agent, c.Name)
+		}
+		for _, e := range report.Errors {
+			fmt.Fprintln(os.Stderr, "error  ", e)
+		}
+		fmt.Println(report.Summary())
+		return
+	}
+
+	since, err := parseTimeFlag(*sinceFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid -since: %v\n", err)
+		os.Exit(1)
+	}
+	until, err := parseTimeFlag(*untilFlag)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid -until: %v\n", err)
+		os.Exit(1)
+	}
+	searchOpts := SearchOptions{
+		Regex:  *regexFlag,
+		Phrase: *phraseFlag,
+		Since:  since,
+		Until:  until,
+		Limit:  *limitFlag,
+		JSON:   *jsonFlag,
+	}
+
+	sessions := findSessions(home)
+	if *agentFilter != "" || *projFilter != "" {
+		sessions = filterSessionsCLI(sessions, *agentFilter, *projFilter)
+	}
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].LastTime.After(sessions[j].LastTime)
+	})
+
+	if *searchQuery != "" {
+		runSearch(sessions, *searchQuery, searchOpts)
+		return
+	}
+
+	args := flag.Args()
+	if len(args) > 0 {
+		arg := args[0]
+
+		// "acv search <query>" subcommand
+		if arg == "search" {
+			if len(args) < 2 {
+				fmt.Fprintln(os.Stderr, "Usage: acv search <query>")
+				os.Exit(1)
+			}
+			runSearch(sessions, strings.Join(args[1:], " "), searchOpts)
+			return
+		}
+
+		var session *Session
+
+		idx, idxErr := strconv.Atoi(arg)
+		switch {
+		case idxErr == nil && idx >= 0 && idx < len(sessions):
+			s := sessions[idx]
+			session, err = parseSession(s.Path)
+			if session != nil {
+				session.Size = s.Size
+				session.LastTime = s.LastTime
+			}
+
+		case sessionIDArg(arg):
+			exact, matches := findSessionByID(sessions, arg)
+			switch {
+			case exact != nil:
+				session, err = parseSession(exact.Path)
+				if session != nil {
+					session.Size = exact.Size
+					session.LastTime = exact.LastTime
+				}
+			case len(matches) > 1:
+				printAmbiguousSessionID(arg, matches)
+			default:
+				err = fmt.Errorf("no session found for ID %q", arg)
+			}
+
+		default:
+			session, err = parseSession(arg)
+			if session != nil {
+				if info, errStat := os.Stat(arg); errStat == nil {
+					session.Size = info.Size()
+				}
+			}
+			// If arg is not a valid path, ID, or index, treat it as a search query.
+			if err != nil && !strings.Contains(arg, string(os.PathSeparator)) {
+				runSearch(sessions, strings.Join(args, " "), searchOpts)
+				return
+			}
+		}
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		filter := ""
+		if len(args) > 1 {
+			filter = strings.ToLower(args[1])
+		}
+		printSession(session, filter)
+		return
+	}
+
+	// Print session list
+	if *showStart {
+		fmt.Printf("%-5s %-10s %-15s %-20s %-20s %-25s %-30s %-12s\n", "IDX", "AGENT", "SIZE", "START TIME", "LAST UPDATED", "PROJECT", "TITLE", "ID")
+		fmt.Println(strings.Repeat("-", 170))
+	} else {
+		fmt.Printf("%-5s %-10s %-15s %-20s %-25s %-30s %-12s\n", "IDX", "AGENT", "SIZE", "LAST UPDATED", "PROJECT", "TITLE", "ID")
+		fmt.Println(strings.Repeat("-", 145))
+	}
+	for i, s := range sessions {
+		sizeStr := formatSize(s.Size)
+		projectStr := s.Project
+		if len(projectStr) > 25 {
+			projectStr = projectStr[:22] + "..."
+		}
+		titleStr := s.Title
+		if len(titleStr) > 30 {
+			titleStr = titleStr[:27] + "..."
+		}
+		if *showStart {
+			fmt.Printf("[%d] %-10s %-15s %-20s %-20s %-25s %-30s %.12s\n", i, s.Agent, sizeStr, s.StartTime.Format("2006-01-02 15:04"), s.LastTime.Format("2006-01-02 15:04"), projectStr, titleStr, s.ID)
+		} else {
+			fmt.Printf("[%d] %-10s %-15s %-20s %-25s %-30s %.12s\n", i, s.Agent, sizeStr, s.LastTime.Format("2006-01-02 15:04"), projectStr, titleStr, s.ID)
+		}
+	}
+	fmt.Println("\nTo view a session: acv <index> [user|assistant]")
+	fmt.Println("To search sessions: acv <query>  or  acv search <query>  or  acv -f <query>")
+	fmt.Println("To show start times: acv -s")
+	fmt.Println("To list memories:   acv -memories [-project NAME]")
+	fmt.Println("To list artifacts:  acv -files [-agent NAME] [-project NAME]")
+	fmt.Println("To sync skills:     acv -sync-skills")
+}
+
+func filterSessionsCLI(sessions []Session, agent, project string) []Session {
+	var out []Session
+	for _, s := range sessions {
+		if agent != "" && !strings.EqualFold(s.Agent, agent) {
+			continue
+		}
+		if project != "" && !strings.Contains(strings.ToLower(s.Project), strings.ToLower(project)) {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// parseTimeFlag accepts an empty string, a YYYY-MM-DD date, an RFC3339
+// timestamp, or a duration suffix (e.g. "7d", "24h", "2w") interpreted as
+// "now minus that duration".
+func parseTimeFlag(v string) (time.Time, error) {
+	if v == "" {
+		return time.Time{}, nil
+	}
+	if t, err := time.Parse(time.RFC3339, v); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse("2006-01-02", v); err == nil {
+		return t, nil
+	}
+	// Duration suffix: support h/m/s natively, plus d (24h) and w (7d).
+	expanded := v
+	if strings.HasSuffix(v, "d") {
+		n, err := strconv.Atoi(strings.TrimSuffix(v, "d"))
+		if err == nil {
+			expanded = fmt.Sprintf("%dh", n*24)
+		}
+	} else if strings.HasSuffix(v, "w") {
+		n, err := strconv.Atoi(strings.TrimSuffix(v, "w"))
+		if err == nil {
+			expanded = fmt.Sprintf("%dh", n*24*7)
+		}
+	}
+	if d, err := time.ParseDuration(expanded); err == nil {
+		return time.Now().Add(-d), nil
+	}
+	return time.Time{}, fmt.Errorf("unrecognised time %q (want YYYY-MM-DD, RFC3339, or duration like 7d/24h)", v)
+}
