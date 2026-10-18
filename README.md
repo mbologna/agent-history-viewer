@@ -4,9 +4,10 @@ A terminal UI and HTML report generator for browsing, searching, and
 summarizing chat history from AI agent CLIs.
 
 This project merges two tools: the multi-agent TUI/search engine of
-[agent-chat-viewer](https://github.com/manno/agent-chat-viewer) with the
-grouped, AI-summarized HTML report of
-[claude-history-viewer](https://github.com/mbologna/claude-history-viewer).
+[agent-chat-viewer](https://github.com/manno/agent-chat-viewer) by manno with the
+grouped, AI-summarized HTML report of claude-history-viewer, an earlier tool of
+mine that is no longer published separately. Credit for the TUI and search code
+goes to the agent-chat-viewer author.
 
 ## Supported agents
 
