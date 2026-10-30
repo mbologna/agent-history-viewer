@@ -1,0 +1,15 @@
+name: CI
+
+# Pull requests and main only: a branch push already gets its pull request's
+# run, and nothing here publishes anything.
+"on":
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    uses: mbologna/.github/.github/workflows/go-ci.yml@169977f8e92d39d404a2abf7bd48b83a90d1f791 # main
