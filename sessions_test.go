@@ -223,8 +223,6 @@ func TestParseCopilotDir_NoWorkspace(t *testing.T) {
 	}
 }
 
-
-
 func TestFindAndSortSessions_OrderedByLastTime(t *testing.T) {
 	s1 := Session{LastTime: time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)}
 	s2 := Session{LastTime: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
@@ -385,7 +383,7 @@ func TestParseAgy_WithCache(t *testing.T) {
 	}, "\n")
 
 	tempDir := t.TempDir()
-	
+
 	// Create cache file
 	cacheDir := filepath.Join(tempDir, ".gemini", "antigravity-cli", "cache")
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {

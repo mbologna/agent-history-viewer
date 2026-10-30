@@ -14,10 +14,10 @@ import (
 type MemoryFile struct {
 	Path    string
 	Project string
-	Name    string    // from frontmatter name:
-	Type    string    // from frontmatter metadata.type:
-	Desc    string    // from frontmatter description:
-	Content string    // body after frontmatter
+	Name    string // from frontmatter name:
+	Type    string // from frontmatter metadata.type:
+	Desc    string // from frontmatter description:
+	Content string // body after frontmatter
 	ModTime time.Time
 	Size    int64
 }

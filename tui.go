@@ -190,10 +190,10 @@ type tuiModel struct {
 	searchHits  []searchHit
 
 	// memories
-	memories        []MemoryFile
-	memoriesLoaded  bool
-	filtMemories    []MemoryFile
-	selectedMemory  *MemoryFile
+	memories       []MemoryFile
+	memoriesLoaded bool
+	filtMemories   []MemoryFile
+	selectedMemory *MemoryFile
 
 	// artifacts
 	artifacts        []Artifact
@@ -208,9 +208,9 @@ type tuiModel struct {
 	selectedSkill *Skill
 
 	// skill conflicts (queued by `y` sync)
-	conflicts        []SkillConflict
-	conflictIdx      int
-	conflictMsg      string
+	conflicts   []SkillConflict
+	conflictIdx int
+	conflictMsg string
 
 	width  int
 	height int
@@ -1118,14 +1118,14 @@ func (m tuiModel) memoriesView() string {
 	var body string
 	if !m.memoriesLoaded {
 		body = lipgloss.NewStyle().
-			Width(m.width).Height(m.tableHeight()+2).
+			Width(m.width).Height(m.tableHeight() + 2).
 			Render(dimStyle.Render("\n  Scanning memories…"))
 	} else if len(m.filtMemories) == 0 {
 		msg := "  No memory files found."
 		if m.textInput.Value() != "" {
 			msg = fmt.Sprintf("  No matches for %q.", m.textInput.Value())
 		}
-		body = lipgloss.NewStyle().Width(m.width).Height(m.tableHeight()+2).Render(dimStyle.Render("\n" + msg))
+		body = lipgloss.NewStyle().Width(m.width).Height(m.tableHeight() + 2).Render(dimStyle.Render("\n" + msg))
 	} else {
 		body = m.table.View()
 	}
@@ -1149,14 +1149,14 @@ func (m tuiModel) artifactsView() string {
 	var body string
 	if !m.artifactsLoaded {
 		body = lipgloss.NewStyle().
-			Width(m.width).Height(m.tableHeight()+2).
+			Width(m.width).Height(m.tableHeight() + 2).
 			Render(dimStyle.Render("\n  Scanning artifacts…"))
 	} else if len(m.filtArtifacts) == 0 {
 		msg := "  No artifact files found."
 		if m.textInput.Value() != "" {
 			msg = fmt.Sprintf("  No matches for %q.", m.textInput.Value())
 		}
-		body = lipgloss.NewStyle().Width(m.width).Height(m.tableHeight()+2).Render(dimStyle.Render("\n" + msg))
+		body = lipgloss.NewStyle().Width(m.width).Height(m.tableHeight() + 2).Render(dimStyle.Render("\n" + msg))
 	} else {
 		body = m.table.View()
 	}
@@ -1180,14 +1180,14 @@ func (m tuiModel) skillsView() string {
 	var body string
 	if !m.skillsLoaded {
 		body = lipgloss.NewStyle().
-			Width(m.width).Height(m.tableHeight()+2).
+			Width(m.width).Height(m.tableHeight() + 2).
 			Render(dimStyle.Render("\n  Scanning skills…"))
 	} else if len(m.filtSkills) == 0 {
 		msg := "  No skills found in ~/.copilot/skills, ~/.claude/skills, or canonical store."
 		if m.textInput.Value() != "" {
 			msg = fmt.Sprintf("  No matches for %q.", m.textInput.Value())
 		}
-		body = lipgloss.NewStyle().Width(m.width).Height(m.tableHeight()+2).Render(dimStyle.Render("\n" + msg))
+		body = lipgloss.NewStyle().Width(m.width).Height(m.tableHeight() + 2).Render(dimStyle.Render("\n" + msg))
 	} else {
 		body = m.table.View()
 	}

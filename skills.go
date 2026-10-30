@@ -206,9 +206,9 @@ func parseSkillFrontmatter(s *Skill) {
 
 // SyncReport summarises one sync run for display in the TUI.
 type SyncReport struct {
-	Moved     []string        // "agent:name → canonical"
-	Linked    []string        // "agent:name (link)"
-	Skipped   []string        // "agent:name: reason"
+	Moved     []string // "agent:name → canonical"
+	Linked    []string // "agent:name (link)"
+	Skipped   []string // "agent:name: reason"
 	Errors    []string
 	Conflicts []SkillConflict // real-dir name collisions awaiting user decision
 }
