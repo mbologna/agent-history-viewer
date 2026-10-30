@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 var sessionIDPattern = regexp.MustCompile(`^[0-9a-fA-F-]{6,}$`)
@@ -95,7 +95,7 @@ func main() {
 		if arg := flag.Args()[0]; sessionIDArg(arg) {
 			sessions := findAndSortSessions(home)
 			if exact, matches := findSessionByID(sessions, arg); exact != nil {
-				p := tea.NewProgram(newTUIForSession(exact.ID), tea.WithAltScreen())
+				p := tea.NewProgram(newTUIForSession(exact.ID))
 				if _, err := p.Run(); err != nil {
 					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 					os.Exit(1)
@@ -113,7 +113,7 @@ func main() {
 	cliMode := *noTUI || *showMem || *showFiles || *syncSkillsF || *searchQuery != "" ||
 		flag.NArg() > 0 || *agentFilter != "" || *projFilter != ""
 	if !cliMode {
-		p := tea.NewProgram(newTUI(), tea.WithAltScreen())
+		p := tea.NewProgram(newTUI())
 		if _, err := p.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
