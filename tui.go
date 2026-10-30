@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/compat"
 )
 
 // ── view states ──────────────────────────────────────────────────────────────
@@ -44,44 +45,52 @@ const (
 
 // ── styles ───────────────────────────────────────────────────────────────────
 
+// The bars are one line each (vpHeight counts them so), but Width(w).Render
+// wraps what doesn't fit, such as a long session path, onto a second line that
+// pushed the frame past the terminal: the help bar went off screen. MaxHeight(1)
+// cuts the bar at the terminal edge instead.
 var (
 	titleBarStyle = lipgloss.NewStyle().
+			MaxHeight(1).
 			Bold(true).
 			Foreground(lipgloss.Color("15")).
 			Background(lipgloss.Color("57")).
 			PaddingLeft(1).PaddingRight(1)
 
 	statusBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Dark: "252", Light: "237"}).
-			Background(lipgloss.AdaptiveColor{Dark: "236", Light: "253"}).
+			MaxHeight(1).
+			Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("252"), Light: lipgloss.Color("237")}).
+			Background(compat.AdaptiveColor{Dark: lipgloss.Color("236"), Light: lipgloss.Color("253")}).
 			PaddingLeft(1).PaddingRight(1)
 
 	inputBarStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Dark: "226", Light: "94"}).
-			Background(lipgloss.AdaptiveColor{Dark: "236", Light: "253"}).
+			MaxHeight(1).
+			Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("226"), Light: lipgloss.Color("94")}).
+			Background(compat.AdaptiveColor{Dark: lipgloss.Color("236"), Light: lipgloss.Color("253")}).
 			PaddingLeft(1).PaddingRight(1)
 
 	detailMetaStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Dark: "247", Light: "239"}).
-			Background(lipgloss.AdaptiveColor{Dark: "237", Light: "254"}).
+			MaxHeight(1).
+			Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("247"), Light: lipgloss.Color("239")}).
+			Background(compat.AdaptiveColor{Dark: lipgloss.Color("237"), Light: lipgloss.Color("254")}).
 			PaddingLeft(1).PaddingRight(1)
 
 	userHeaderStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.AdaptiveColor{Dark: "141", Light: "91"})
+			Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("141"), Light: lipgloss.Color("91")})
 
 	assistantHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(lipgloss.AdaptiveColor{Dark: "221", Light: "136"})
+				Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("221"), Light: lipgloss.Color("136")})
 
 	dimStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Dark: "243", Light: "241"})
+			Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("243"), Light: lipgloss.Color("241")})
 
 	separatorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Dark: "238", Light: "250"})
+			Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("238"), Light: lipgloss.Color("250")})
 
 	tabBarBgStyle = lipgloss.NewStyle().
-			Background(lipgloss.AdaptiveColor{Dark: "234", Light: "252"})
+			Background(compat.AdaptiveColor{Dark: lipgloss.Color("234"), Light: lipgloss.Color("252")})
 
 	tabActiveStyle = lipgloss.NewStyle().
 			Bold(true).
@@ -90,27 +99,27 @@ var (
 			PaddingLeft(1).PaddingRight(1)
 
 	tabInactiveStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Dark: "244", Light: "244"}).
-				Background(lipgloss.AdaptiveColor{Dark: "234", Light: "252"}).
+				Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("244"), Light: lipgloss.Color("244")}).
+				Background(compat.AdaptiveColor{Dark: lipgloss.Color("234"), Light: lipgloss.Color("252")}).
 				PaddingLeft(1).PaddingRight(1)
 
 	memTypeStyles = map[string]lipgloss.Style{
-		"user":      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "81", Light: "25"}).Bold(true),
-		"feedback":  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "221", Light: "130"}).Bold(true),
-		"project":   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "119", Light: "28"}).Bold(true),
-		"reference": lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "51", Light: "31"}).Bold(true),
+		"user":      lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("81"), Light: lipgloss.Color("25")}).Bold(true),
+		"feedback":  lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("221"), Light: lipgloss.Color("130")}).Bold(true),
+		"project":   lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("119"), Light: lipgloss.Color("28")}).Bold(true),
+		"reference": lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("51"), Light: lipgloss.Color("31")}).Bold(true),
 	}
 
 	kindStyles = map[string]lipgloss.Style{
-		"tool-result": lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "214", Light: "130"}).Bold(true),
-		"gemini-log":  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "177", Light: "97"}).Bold(true),
+		"tool-result": lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("214"), Light: lipgloss.Color("130")}).Bold(true),
+		"gemini-log":  lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("177"), Light: lipgloss.Color("97")}).Bold(true),
 	}
 
-	agentAdaptiveColors = map[string]lipgloss.AdaptiveColor{
-		"claude":  {Dark: "81", Light: "25"},
-		"gemini":  {Dark: "214", Light: "130"},
-		"copilot": {Dark: "119", Light: "28"},
-		"agy":     {Dark: "135", Light: "57"},
+	agentAdaptiveColors = map[string]compat.AdaptiveColor{
+		"claude":  {Dark: lipgloss.Color("81"), Light: lipgloss.Color("25")},
+		"gemini":  {Dark: lipgloss.Color("214"), Light: lipgloss.Color("130")},
+		"copilot": {Dark: lipgloss.Color("119"), Light: lipgloss.Color("28")},
+		"agy":     {Dark: lipgloss.Color("135"), Light: lipgloss.Color("57")},
 	}
 )
 
@@ -158,9 +167,9 @@ func relTimeColored(t time.Time) string {
 	d := time.Since(t)
 	switch {
 	case d < time.Hour:
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "119", Light: "28"}).Render(s)
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("119"), Light: lipgloss.Color("28")}).Render(s)
 	case d < 24*time.Hour:
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "221", Light: "130"}).Render(s)
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("221"), Light: lipgloss.Color("130")}).Render(s)
 	default:
 		return dimStyle.Render(s)
 	}
@@ -297,30 +306,30 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case viewList:
 			m.rebuildTable()
 		case viewDetail:
-			m.viewport.Width = m.width
-			m.viewport.Height = m.vpHeight()
+			m.viewport.SetWidth(m.width)
+			m.viewport.SetHeight(m.vpHeight())
 			m.viewport.SetContent(m.renderMessages())
 		case viewMemories:
 			m.rebuildMemoriesTable()
 		case viewMemoryDetail:
-			m.viewport.Width = m.width
-			m.viewport.Height = m.vpHeight()
+			m.viewport.SetWidth(m.width)
+			m.viewport.SetHeight(m.vpHeight())
 			m.viewport.SetContent(m.renderMemory())
 		case viewArtifacts:
 			m.rebuildArtifactsTable()
 		case viewArtifactDetail:
-			m.viewport.Width = m.width
-			m.viewport.Height = m.vpHeight()
+			m.viewport.SetWidth(m.width)
+			m.viewport.SetHeight(m.vpHeight())
 			m.viewport.SetContent(m.renderArtifact())
 		case viewSkills:
 			m.rebuildSkillsTable()
 		case viewSkillDetail:
-			m.viewport.Width = m.width
-			m.viewport.Height = m.vpHeight()
+			m.viewport.SetWidth(m.width)
+			m.viewport.SetHeight(m.vpHeight())
 			m.viewport.SetContent(m.renderSkill())
 		case viewSkillConflict:
-			m.viewport.Width = m.width
-			m.viewport.Height = m.vpHeight()
+			m.viewport.SetWidth(m.width)
+			m.viewport.SetHeight(m.vpHeight())
 			m.viewport.SetContent(m.renderConflictDiff())
 		}
 		return m, nil
@@ -377,14 +386,32 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
 
 	return m, nil
 }
 
-func (m tuiModel) View() string {
+// View is the whole screen, always in the alternate screen buffer (Bubble Tea v2
+// moved that from a program option to a View field).
+// inputView renders the text input as wide as its placeholder or its text,
+// whichever is wider, like v1's unlimited width. bubbles v2 keeps only
+// Width()+1 runes of the placeholder, so at width 0 the prompt showed just its
+// first letter; a fixed width would pad the input and push the hints right.
+func (m tuiModel) inputView() string {
+	ti := m.textInput
+	ti.SetWidth(max(lipgloss.Width(ti.Placeholder), lipgloss.Width(ti.Value())+1))
+	return ti.View()
+}
+
+func (m tuiModel) View() tea.View {
+	v := tea.NewView(m.render())
+	v.AltScreen = true
+	return v
+}
+
+func (m tuiModel) render() string {
 	switch m.view {
 	case viewLoading:
 		return m.loadingView()
@@ -412,7 +439,7 @@ func (m tuiModel) View() string {
 
 // ── key handling ──────────────────────────────────────────────────────────────
 
-func (m tuiModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch m.view {
 	case viewList:
 		return m.handleListKey(msg)
@@ -498,7 +525,7 @@ func (m tuiModel) handleResourceKey(key string) (tuiModel, tea.Cmd, bool) {
 
 // ── sessions list keys ────────────────────────────────────────────────────────
 
-func (m tuiModel) handleListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleListKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch m.mode {
 	case modeFilter:
 		return m.handleFilterKey(msg)
@@ -509,7 +536,7 @@ func (m tuiModel) handleListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m tuiModel) handleFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleFilterKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.mode = modeNormal
@@ -563,7 +590,7 @@ func (m *tuiModel) applyFilter(q string) {
 	}
 }
 
-func (m tuiModel) handleSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleSearchKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.mode = modeNormal
@@ -591,7 +618,7 @@ func (m tuiModel) handleSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m tuiModel) handleTableKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleTableKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if mm, cmd, handled := m.handleResourceKey(msg.String()); handled {
 		return mm, cmd
 	}
@@ -657,11 +684,11 @@ func (m *tuiModel) openDetail(s *Session) {
 	m.selected = s
 	m.roleFilter = ""
 	m.view = viewDetail
-	m.viewport = viewport.New(m.width, m.vpHeight())
+	m.viewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.vpHeight()))
 	m.viewport.SetContent(m.renderMessages())
 }
 
-func (m tuiModel) handleDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc":
 		m.view = viewList
@@ -716,14 +743,14 @@ func (m tuiModel) handleDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // ── memories keys ─────────────────────────────────────────────────────────────
 
-func (m tuiModel) handleMemoriesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleMemoriesKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.mode == modeFilter {
 		return m.handleFilterKey(msg)
 	}
 	return m.handleMemoriesTableKey(msg)
 }
 
-func (m tuiModel) handleMemoriesTableKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleMemoriesTableKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if mm, cmd, handled := m.handleResourceKey(msg.String()); handled {
 		return mm, cmd
 	}
@@ -761,11 +788,11 @@ func (m tuiModel) handleMemoriesTableKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *tuiModel) openMemoryDetail(mem *MemoryFile) {
 	m.selectedMemory = mem
 	m.view = viewMemoryDetail
-	m.viewport = viewport.New(m.width, m.vpHeight())
+	m.viewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.vpHeight()))
 	m.viewport.SetContent(m.renderMemory())
 }
 
-func (m tuiModel) handleMemoryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleMemoryDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc":
 		m.view = viewMemories
@@ -794,14 +821,14 @@ func (m tuiModel) handleMemoryDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // ── artifacts keys ────────────────────────────────────────────────────────────
 
-func (m tuiModel) handleArtifactsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleArtifactsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.mode == modeFilter {
 		return m.handleFilterKey(msg)
 	}
 	return m.handleArtifactsTableKey(msg)
 }
 
-func (m tuiModel) handleArtifactsTableKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleArtifactsTableKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if mm, cmd, handled := m.handleResourceKey(msg.String()); handled {
 		return mm, cmd
 	}
@@ -839,11 +866,11 @@ func (m tuiModel) handleArtifactsTableKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *tuiModel) openArtifactDetail(a *Artifact) {
 	m.selectedArtifact = a
 	m.view = viewArtifactDetail
-	m.viewport = viewport.New(m.width, m.vpHeight())
+	m.viewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.vpHeight()))
 	m.viewport.SetContent(m.renderArtifact())
 }
 
-func (m tuiModel) handleArtifactDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleArtifactDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc":
 		m.view = viewArtifacts
@@ -872,14 +899,14 @@ func (m tuiModel) handleArtifactDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // ── skills keys ──────────────────────────────────────────────────────────────
 
-func (m tuiModel) handleSkillsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleSkillsKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.mode == modeFilter {
 		return m.handleFilterKey(msg)
 	}
 	return m.handleSkillsTableKey(msg)
 }
 
-func (m tuiModel) handleSkillsTableKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleSkillsTableKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if mm, cmd, handled := m.handleResourceKey(msg.String()); handled {
 		return mm, cmd
 	}
@@ -931,11 +958,11 @@ func (m tuiModel) handleSkillsTableKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *tuiModel) openSkillDetail(s *Skill) {
 	m.selectedSkill = s
 	m.view = viewSkillDetail
-	m.viewport = viewport.New(m.width, m.vpHeight())
+	m.viewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.vpHeight()))
 	m.viewport.SetContent(m.renderSkill())
 }
 
-func (m tuiModel) handleSkillDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleSkillDetailKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "esc":
 		m.view = viewSkills
@@ -958,7 +985,7 @@ func (m tuiModel) handleSkillDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *tuiModel) openConflictView() {
 	m.view = viewSkillConflict
-	m.viewport = viewport.New(m.width, m.vpHeight())
+	m.viewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.vpHeight()))
 	m.viewport.SetContent(m.renderConflictDiff())
 }
 
@@ -972,12 +999,12 @@ func (m *tuiModel) advanceConflict() (tea.Model, tea.Cmd) {
 		m.skillsLoaded = false
 		return *m, loadSkillsCmd()
 	}
-	m.viewport = viewport.New(m.width, m.vpHeight())
+	m.viewport = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(m.vpHeight()))
 	m.viewport.SetContent(m.renderConflictDiff())
 	return *m, nil
 }
 
-func (m tuiModel) handleSkillConflictKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m tuiModel) handleSkillConflictKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.conflictIdx >= len(m.conflicts) {
 		// safety: nothing left, bail back to skills.
 		m.view = viewSkills
@@ -1083,12 +1110,12 @@ func (m tuiModel) listView() string {
 	var footer string
 	switch m.mode {
 	case modeFilter:
-		label := "/ " + m.textInput.View()
+		label := "/ " + m.inputView()
 		hint := dimStyle.Render("   enter: apply  esc: clear")
 		footer = inputBarStyle.Width(m.width).Render(label + hint)
 
 	case modeSearch:
-		label := "s " + m.textInput.View()
+		label := "s " + m.inputView()
 		hint := dimStyle.Render("   enter: search  esc: cancel")
 		footer = inputBarStyle.Width(m.width).Render(label + hint)
 
@@ -1132,7 +1159,7 @@ func (m tuiModel) memoriesView() string {
 
 	var footer string
 	if m.mode == modeFilter {
-		label := "/ " + m.textInput.View()
+		label := "/ " + m.inputView()
 		hint := dimStyle.Render("   enter: apply  esc: clear")
 		footer = inputBarStyle.Width(m.width).Render(label + hint)
 	} else {
@@ -1163,7 +1190,7 @@ func (m tuiModel) artifactsView() string {
 
 	var footer string
 	if m.mode == modeFilter {
-		label := "/ " + m.textInput.View()
+		label := "/ " + m.inputView()
 		hint := dimStyle.Render("   enter: apply  esc: clear")
 		footer = inputBarStyle.Width(m.width).Render(label + hint)
 	} else {
@@ -1194,7 +1221,7 @@ func (m tuiModel) skillsView() string {
 
 	var footer string
 	if m.mode == modeFilter {
-		label := "/ " + m.textInput.View()
+		label := "/ " + m.inputView()
 		hint := dimStyle.Render("   enter: apply  esc: clear")
 		footer = inputBarStyle.Width(m.width).Render(label + hint)
 	} else {
@@ -1499,13 +1526,13 @@ func (m *tuiModel) rebuildSkillsTable() {
 func renderSkillLinkTag(s Skill) string {
 	switch {
 	case s.Agent == "canonical":
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "117", Light: "27"}).Render("source")
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("117"), Light: lipgloss.Color("27")}).Render("source")
 	case s.Synced:
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "120", Light: "28"}).Render("↔ synced")
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("120"), Light: lipgloss.Color("28")}).Render("↔ synced")
 	case s.IsSymlink:
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "221", Light: "130"}).Render("symlink")
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("221"), Light: lipgloss.Color("130")}).Render("symlink")
 	default:
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "203", Light: "124"}).Render("local")
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("203"), Light: lipgloss.Color("124")}).Render("local")
 	}
 }
 
@@ -1520,15 +1547,15 @@ func buildStyledTable(cols []table.Column, rows []table.Row, height int, width i
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.AdaptiveColor{Dark: "240", Light: "248"}).
+		BorderForeground(compat.AdaptiveColor{Dark: lipgloss.Color("240"), Light: lipgloss.Color("248")}).
 		BorderBottom(true).
 		Bold(true).
-		Foreground(lipgloss.AdaptiveColor{Dark: "255", Light: "232"})
+		Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("255"), Light: lipgloss.Color("232")})
 	s.Selected = s.Selected.
-		Foreground(lipgloss.AdaptiveColor{Dark: "229", Light: "235"}).
-		Background(lipgloss.AdaptiveColor{Dark: "57", Light: "189"}).
+		Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("229"), Light: lipgloss.Color("235")}).
+		Background(compat.AdaptiveColor{Dark: lipgloss.Color("57"), Light: lipgloss.Color("189")}).
 		Bold(false)
-	s.Cell = s.Cell.Foreground(lipgloss.AdaptiveColor{Dark: "252", Light: "237"})
+	s.Cell = s.Cell.Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("252"), Light: lipgloss.Color("237")})
 	t.SetStyles(s)
 	return t
 }
@@ -1725,13 +1752,13 @@ func (m tuiModel) renderConflictDiff() string {
 func colorizeDiffLine(line string) string {
 	switch {
 	case strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---"):
-		return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Dark: "117", Light: "27"}).Render(line)
+		return lipgloss.NewStyle().Bold(true).Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("117"), Light: lipgloss.Color("27")}).Render(line)
 	case strings.HasPrefix(line, "@@"):
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "213", Light: "92"}).Render(line)
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("213"), Light: lipgloss.Color("92")}).Render(line)
 	case strings.HasPrefix(line, "+"):
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "120", Light: "28"}).Render(line)
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("120"), Light: lipgloss.Color("28")}).Render(line)
 	case strings.HasPrefix(line, "-"):
-		return lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Dark: "203", Light: "124"}).Render(line)
+		return lipgloss.NewStyle().Foreground(compat.AdaptiveColor{Dark: lipgloss.Color("203"), Light: lipgloss.Color("124")}).Render(line)
 	default:
 		return line
 	}
