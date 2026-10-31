@@ -1,15 +1,21 @@
 name: Release
 
+# A tag pushed by hand starts this through `push`; a tag auto-release pushes
+# (ci.yml) starts it through workflow_dispatch on the tag, because a tag
+# pushed with GITHUB_TOKEN triggers no run.
 on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   build:
+    # A manual run started on a branch has nothing to release.
+    if: startsWith(github.ref, 'refs/tags/v')
     name: Build and release
     runs-on: ubuntu-latest
     strategy:
@@ -54,10 +60,17 @@ jobs:
         with:
           merge-multiple: true
 
+      # auto-release creates the Release, with its notes, before it starts
+      # this workflow: then only the binaries are attached.
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create ${{ github.ref_name }} ahv-* \
-            --repo ${{ github.repository }} \
-            --generate-notes
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" ahv-* \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" ahv-* \
+              --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --generate-notes
+          fi

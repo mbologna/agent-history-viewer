@@ -1,11 +1,21 @@
 name: CI
 
 # Pull requests and main only: a branch push already gets its pull request's
-# run, and nothing here publishes anything.
+# run. Monday's schedule and a manual run add the auto-release job; the
+# binaries build in release.yml, on the tag it creates.
 "on":
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a run on the default branch: it may be releasing, and a cut
+  # release leaves a tag without its Release.
+  cancel-in-progress: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
 
 permissions:
   contents: read
@@ -13,3 +23,24 @@ permissions:
 jobs:
   go:
     uses: mbologna/.github/.github/workflows/go-ci.yml@169977f8e92d39d404a2abf7bd48b83a90d1f791 # main
+
+  auto-release:
+    # Monday's schedule releases when a feat, fix, perf, revert or breaking
+    # commit landed since the last tag, and a manual run releases whatever is
+    # unreleased; a push to the default branch releases only a CVE fix (the
+    # wrapper switches to the security strategy).
+    if: >-
+      github.event_name == 'schedule' ||
+      ((github.event_name == 'workflow_dispatch' || github.event_name == 'push') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+    needs: [go]
+    # contents: push the tag and create the Release; actions: start
+    # release.yml on it, since a tag pushed with GITHUB_TOKEN triggers no run.
+    permissions:
+      contents: write
+      actions: write
+    uses: mbologna/.github/.github/workflows/auto-release.yml@169977f8e92d39d404a2abf7bd48b83a90d1f791 # main
+    with:
+      strategy: conventional
+      dispatch_workflow: release.yml
+    secrets: inherit
