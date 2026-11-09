@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   go:
-    uses: mbologna/.github/.github/workflows/go-ci.yml@67d7c1caf42127542e549239033c9010a90716ba # main
+    uses: mbologna/.github/.github/workflows/go-ci.yml@bcb4fa925ee0b89711d2804280b8dd63642a32e4 # main
 
   auto-release:
     # Monday's schedule releases when a feat, fix, perf, revert or breaking
@@ -39,7 +39,7 @@ jobs:
     permissions:
       contents: write
       actions: write
-    uses: mbologna/.github/.github/workflows/auto-release.yml@67d7c1caf42127542e549239033c9010a90716ba # main
+    uses: mbologna/.github/.github/workflows/auto-release.yml@bcb4fa925ee0b89711d2804280b8dd63642a32e4 # main
     with:
       strategy: conventional
       dispatch_workflow: release.yml
