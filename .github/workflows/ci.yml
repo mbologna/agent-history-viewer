@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   go:
-    uses: mbologna/.github/.github/workflows/go-ci.yml@ee5bcf8cd73154eaccd48e386919f73d2dd832e2 # main
+    uses: mbologna/.github/.github/workflows/go-ci.yml@09bc881c557dd70bead1932e686f5dff713d4be4 # main
 
   auto-release:
     needs: [go]
@@ -31,7 +31,7 @@ jobs:
     permissions:
       contents: write
       actions: write
-    uses: mbologna/.github/.github/workflows/auto-release.yml@ee5bcf8cd73154eaccd48e386919f73d2dd832e2 # main
+    uses: mbologna/.github/.github/workflows/auto-release.yml@09bc881c557dd70bead1932e686f5dff713d4be4 # main
     with:
       strategy: conventional
       dispatch_workflow: release.yml
