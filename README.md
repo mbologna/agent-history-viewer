@@ -18,7 +18,7 @@ goes to the agent-chat-viewer author.
 
 ## Installation
 
-Requires Go 1.21+.
+Requires Go 1.26.3+, the version `go.mod` sets.
 
 ```bash
 git clone https://github.com/mbologna/agent-history-viewer
