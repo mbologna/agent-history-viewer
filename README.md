@@ -18,7 +18,7 @@ goes to the agent-chat-viewer author.
 
 ## Installation
 
-Requires Go 1.21+.
+Requires Go 1.26.3+, the version `go.mod` sets.
 
 ```bash
 git clone https://github.com/mbologna/agent-history-viewer
@@ -125,6 +125,14 @@ same canonical copy. You can also run the sync interactively from the
 `ahv` TUI (Skills tab → `s`).
 
 - **[search-prior-sessions](skills/search-prior-sessions/SKILL.md)** — skill that teaches agents to use `ahv` for recalling prior work across Copilot, Claude, Gemini, and agy sessions.
+
+## Versioning
+
+Releases follow SemVer: [auto-release](https://github.com/mbologna/auto-release)
+tags `vX.Y.Z` from the Conventional Commit types (`feat` minor; `fix`,
+`perf`, `revert` patch; a breaking change major), and each tag's GitHub
+Release carries prebuilt `ahv` binaries for Linux and macOS on amd64 and
+arm64. See the [versioning standard](https://github.com/mbologna/.github/blob/main/VERSIONING.md).
 
 ## License
 
