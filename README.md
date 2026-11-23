@@ -126,6 +126,19 @@ same canonical copy. You can also run the sync interactively from the
 
 - **[search-prior-sessions](skills/search-prior-sessions/SKILL.md)** — skill that teaches agents to use `ahv` for recalling prior work across Copilot, Claude, Gemini, and agy sessions.
 
+## Why not an existing tool
+
+- Claude Code's own `/resume`, `/export` and `/insights` commands cover the
+  sessions of one agent only.
+- [ccusage](https://github.com/ccusage/ccusage) (a usage report for agent
+  CLIs) reports usage and cost only, not the conversations.
+- [omnilogue](https://github.com/jhlee0409/omnilogue) (formerly
+  claude-code-history-viewer, a desktop app and web server) browses many
+  agents, but has no terminal UI, no CLI search with JSON output, no grouped
+  static HTML report, no on-demand summaries and no skill syncing.
+
+Checked 2026-11-23.
+
 ## Versioning
 
 Releases follow SemVer: [auto-release](https://github.com/mbologna/auto-release)
